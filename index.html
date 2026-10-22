@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MicroQuest</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&family=Nunito:wght@400;600;800&display=swap">
+<style>
+/* Layout: mapa de "placas de Petri" (fases) → tela da fase com ficha do personagem + quiz. Visual único, colorido, claro. */
+:root{
+  --bg:#FFF7E8; --ink:#2B1B3D; --soft:#6B5A7E; --card:#FFFFFF; --line:#E9DCF5;
+  --agar:#FFE3A3; --pink:#FF5D8F; --teal:#14B8A6; --violet:#7C3AED; --sun:#FFB000; --ok:#16A34A; --bad:#E11D48;
+  --display:"Fredoka","Trebuchet MS",system-ui,sans-serif; --body:"Nunito",system-ui,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px 40px;
+  background-image:radial-gradient(circle at 10% 10%,#FFD6E5 0 60px,transparent 61px),radial-gradient(circle at 92% 30%,#C9F5EE 0 90px,transparent 91px),radial-gradient(circle at 80% 95%,#E6D9FF 0 70px,transparent 71px);background-attachment:fixed}
+.wrap{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+h1{font-family:var(--display);font-size:clamp(30px,6vw,46px);margin:0;line-height:1;letter-spacing:.5px}
+h1 span{color:var(--pink)} h1 b{color:var(--teal)}
+.sub{color:var(--soft);margin:4px 0 0}
+.hud{display:flex;gap:8px;flex-wrap:wrap}
+.pill{background:var(--card);border:2px solid var(--ink);border-radius:999px;padding:6px 12px;font-weight:800;font-variant-numeric:tabular-nums;box-shadow:3px 3px 0 var(--ink)}
+button{font:inherit;cursor:pointer}
+.btn{background:var(--sun);color:var(--ink);border:2px solid var(--ink);border-radius:14px;padding:10px 16px;font-weight:800;box-shadow:3px 3px 0 var(--ink);transition:transform .1s}
+.btn:hover{transform:translate(-1px,-1px)} .btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.btn:focus-visible,.opt:focus-visible,.tile:focus-visible{outline:3px solid var(--violet);outline-offset:3px}
+.btn.alt{background:var(--card)}
+.xpbar{height:14px;background:var(--card);border:2px solid var(--ink);border-radius:99px;overflow:hidden}
+.xpbar i{display:block;height:100%;background:linear-gradient(90deg,var(--teal),var(--violet),var(--pink));transition:width .5s}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+.tile{background:var(--card);border:2px solid var(--ink);border-radius:20px;padding:14px;text-align:left;display:flex;gap:12px;align-items:center;box-shadow:4px 4px 0 var(--ink);transition:transform .15s;color:var(--ink)}
+.tile:hover{transform:translateY(-3px) rotate(-.5deg)}
+.tile svg{flex:0 0 64px}
+.tile h3{font-family:var(--display);font-size:17px;margin:0;line-height:1.15}
+.tile small{color:var(--soft);display:block}
+.stars{color:var(--sun);font-size:15px;letter-spacing:2px;-webkit-text-stroke:.5px var(--ink)}
+.stage{background:var(--card);border:2px solid var(--ink);border-radius:24px;box-shadow:6px 6px 0 var(--ink);overflow:hidden}
+.stagehead{display:flex;gap:16px;align-items:center;padding:18px;flex-wrap:wrap}
+.stagehead > div{min-width:0;flex:1}
+.stagehead h2{font-family:var(--display);font-size:clamp(22px,4vw,30px);margin:0;line-height:1.1}
+.bubble{position:relative;background:var(--bg);border:2px solid var(--ink);border-radius:16px;padding:10px 14px;margin-top:8px;font-weight:600}
+.char{animation:bob 2.4s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-6px) rotate(2deg)}}
+.tabs{display:flex;border-top:2px solid var(--ink)}
+.tabs button{flex:1;padding:12px;border:0;background:var(--agar);font-weight:800;border-right:2px solid var(--ink);color:var(--ink)}
+.tabs button:last-child{border-right:0}
+.tabs button[aria-selected="true"]{background:var(--ink);color:#fff}
+.panel{padding:18px;border-top:2px solid var(--ink)}
+.facts{display:grid;gap:10px}
+.fact{background:var(--bg);border-radius:14px;padding:12px 14px;border-left:6px solid var(--c,var(--teal))}
+.fact b{font-family:var(--display);font-weight:700;font-size:17px;display:block;margin-bottom:2px}
+.fact p{margin:0;max-width:70ch}
+.q{font-family:var(--display);font-size:20px;margin:0 0 12px;line-height:1.25;text-wrap:balance}
+.opts{display:grid;gap:10px}
+.opt{text-align:left;background:var(--card);border:2px solid var(--ink);border-radius:14px;padding:12px 14px;font-weight:700;color:var(--ink)}
+.opt:hover:not(:disabled){background:var(--agar)}
+.opt.right{background:#DCFCE7;border-color:var(--ok)} .opt.wrong{background:#FFE4E6;border-color:var(--bad);animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.explain{margin-top:12px;padding:12px 14px;border-radius:14px;background:#EDE9FE;font-weight:600}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-top:14px}
+.meta{color:var(--soft);font-weight:800;font-variant-numeric:tabular-nums}
+.confetti{position:fixed;inset:0;pointer-events:none;z-index:50}
+.done{text-align:center;padding:10px}
+.done h3{font-family:var(--display);font-size:28px;margin:6px 0}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Micro<span>Quest</span> <b>Lab</b></h1>
+      <p class="sub">12 fases de Microbiologia. Leia a ficha, enfrente o quiz, ganhe estrelas.</p>
+    </div>
+    <div class="hud">
+      <span class="pill" id="lvl">Nível 1</span>
+      <span class="pill" id="xp">0 XP</span>
+      <button class="btn alt" id="snd" aria-pressed="true">Som: ligado</button>
+    </div>
+  </header>
+  <div class="xpbar" aria-hidden="true"><i id="xpfill" style="width:0"></i></div>
+  <div class="row" style="margin:0">
+    <span class="meta" id="progress"></span>
+    <button class="btn" id="boss">Desafio final (mistura tudo)</button>
+  </div>
+  <main id="view"></main>
+</div>
+<canvas class="confetti" id="cf"></canvas>
+
+<script>
+const T=[
+{id:"bio",name:"Biossegurança e Microscopia",hero:"Dra. Luva",shape:"shield",color:"#14B8A6",
+ hi:"Sem EPI ninguém entra no meu laboratório! Bora aprender a trabalhar seguro e a usar o microscópio direito.",
+ facts:[
+ ["Níveis de biossegurança (NB)","NB-1: agentes de baixo risco (ex.: Bacillus subtilis), bancada aberta. NB-2: risco moderado (Staphylococcus aureus, Salmonella), uso de cabine de segurança biológica para aerossóis. NB-3: transmissão por via aérea e doença grave (M. tuberculosis). NB-4: risco máximo, sem tratamento (Ebola)."],
+ ["EPI e EPC","EPI (individual): jaleco de manga longa, luvas, óculos, máscara, sapato fechado. EPC (coletivo): cabine de segurança biológica, chuveiro e lava-olhos, extintor, autoclave."],
+ ["Boas práticas","Não comer, beber nem usar celular na bancada. Nunca pipetar com a boca. Desinfetar a bancada antes e depois (álcool 70%). Lavar as mãos. Descarte: perfurocortantes em caixa rígida, material contaminado autoclavado (saco branco leitoso, risco biológico)."],
+ ["Alça e bico de Bunsen","A alça de platina/níquel-cromo é flambada até ficar vermelha antes e depois do uso e esfriada antes de tocar a cultura. O bico cria uma zona estéril de ~15–20 cm ao redor da chama: trabalhe dentro dela."],
+ ["Partes do microscópio","Óptica: ocular (10x), objetivas (4x, 10x, 40x, 100x de imersão), condensador, diafragma, fonte de luz. Mecânica: base, braço, platina, charriot, parafusos macro e micrométrico, revólver."],
+ ["Aumento total e imersão","Aumento total = ocular × objetiva (10 × 100 = 1000x). A objetiva de 100x exige óleo de imersão, que tem índice de refração parecido com o vidro e evita perda de luz, melhorando a resolução. Focar começando pela menor objetiva; com 40x e 100x usar só o micrométrico. Limpar o óleo da lente após o uso."]],
+ qs:[
+ ["Qual objetiva exige óleo de imersão?",["4x","10x","40x","100x"],3,"A objetiva de 100x precisa de óleo para reduzir a refração da luz e aumentar a resolução."],
+ ["Ocular 10x com objetiva 40x dá aumento total de:",["50x","400x","4000x","140x"],1,"Aumento total = ocular × objetiva = 10 × 40 = 400x."],
+ ["Mycobacterium tuberculosis deve ser manipulado em qual nível?",["NB-1","NB-2","NB-3","Bancada aberta"],2,"Agentes de transmissão aérea e doença grave com tratamento ficam no NB-3."],
+ ["Qual destes é um EPC?",["Luvas","Jaleco","Cabine de segurança biológica","Óculos"],2,"Equipamento de proteção coletiva protege todos: cabine, chuveiro, lava-olhos."]]},
+{id:"morf",name:"Morfologia e Estrutura Bacteriana",hero:"Bacilo Bento",shape:"rod",color:"#7C3AED",
+ hi:"Eu sou um bacilo, forma de bastão! Mas tem cocos, espirilos e mais. E por dentro sou procarioto: sem núcleo!",
+ facts:[
+ ["Formas","Cocos (esféricos): diplococos (pares), estreptococos (cadeias), estafilococos (cachos), tétrades e sarcinas. Bacilos (bastonetes), cocobacilos. Espirilos (rígidos), espiroquetas (flexíveis) e vibriões (vírgula, ex.: Vibrio cholerae)."],
+ ["Célula procariótica","Sem núcleo e sem organelas membranosas. DNA circular no nucleoide, ribossomos 70S (30S + 50S), plasmídeos (DNA extra, muitas vezes com genes de resistência)."],
+ ["Parede celular","Feita de peptidoglicano. Gram-positiva: camada grossa de peptidoglicano + ácidos teicoicos. Gram-negativa: camada fina + membrana externa com LPS (lipopolissacarídeo, a endotoxina) e espaço periplasmático."],
+ ["Estruturas externas","Cápsula/glicocálice: protege da fagocitose e ajuda na adesão. Flagelos: movimento (monotríquio, lofotríquio, anfitríquio, peritríquio). Fímbrias/pili: adesão; pilus sexual faz conjugação (troca de DNA)."],
+ ["Endósporo","Forma de resistência a calor, dessecação e químicos. Típico de Bacillus e Clostridium. Não é reprodução: uma célula forma um esporo. Por isso a autoclave (121 °C) é necessária para esterilizar."]],
+ qs:[
+ ["Cocos agrupados em cachos de uva são chamados de:",["Estreptococos","Estafilococos","Diplococos","Sarcinas"],1,"Estafilo = cacho. Estrepto = cadeia (corrente)."],
+ ["O LPS (endotoxina) está presente em:",["Gram-positivas","Gram-negativas","Vírus","Fungos"],1,"O LPS fica na membrana externa, exclusiva das Gram-negativas."],
+ ["Qual estrutura permite a conjugação bacteriana?",["Cápsula","Flagelo","Pilus sexual","Endósporo"],2,"O pilus sexual liga duas bactérias para transferir DNA (plasmídeos)."],
+ ["Ribossomos bacterianos são do tipo:",["80S","70S","60S","90S"],1,"Procariotos têm ribossomos 70S; eucariotos, 80S. Isso é alvo de antibióticos."]]},
+{id:"ubi",name:"Ubiquidade Microbiana",hero:"Ubi, o Viajante",shape:"star",color:"#FF5D8F",
+ hi:"Eu estou em todo lugar: no ar, na sua pele, no celular, na maçaneta! Ubiquidade é isso.",
+ facts:[
+ ["O que é","Ubiquidade é a presença dos micro-organismos em praticamente todos os ambientes: solo, água, ar, superfícies, alimentos, plantas, animais e no corpo humano."],
+ ["Como se demonstra na aula","Placas com meio de cultura (ex.: ágar nutriente) são expostas ao ar, tocadas com os dedos, com moedas, celular ou swab de superfícies. Após incubação (24–48 h, 35–37 °C), aparecem colônias diferentes."],
+ ["Lendo as colônias","Colônias variam em cor, forma, borda, elevação e textura, indicando micro-organismos diferentes. Colônias secas e pulverulentas costumam ser fungos filamentosos; lisas e brilhantes, geralmente bactérias ou leveduras."],
+ ["Por que importa","Justifica a técnica asséptica, a higiene das mãos e a desinfecção. Também mostra que a maioria dos micróbios não é patogênica e muitos são benéficos (ciclos do solo, fermentação)."]],
+ qs:[
+ ["Ubiquidade microbiana significa que os micro-organismos:",["Só vivem em hospitais","Estão presentes em quase todos os ambientes","São sempre patogênicos","Só crescem a 37 °C"],1,"Ubíquo = está em toda parte."],
+ ["Colônias secas, aveludadas e pulverulentas na placa sugerem:",["Vírus","Fungos filamentosos","Bactérias Gram-negativas","Contaminação por óleo"],1,"Aspecto algodonoso ou pulverulento é típico de fungos filamentosos."],
+ ["Qual é a principal lição prática da ubiquidade?",["Dispensar luvas","Usar técnica asséptica e higienizar as mãos","Não usar meio de cultura","Incubar no frio"],1,"Se o micróbio está em todo lugar, a técnica asséptica evita contaminação."]]},
+{id:"cresc",name:"Crescimento Microbiano",hero:"Curvinha",shape:"drop",color:"#FFB000",
+ hi:"Eu me divido em dois, depois quatro, oito... Isso é fissão binária! Conheça minha curva de crescimento.",
+ facts:[
+ ["Fissão binária","A bactéria duplica o DNA e se divide em duas células iguais. Tempo de geração: tempo para a população dobrar (E. coli ~20 min em condições ideais). Nº de células = N0 × 2ⁿ (n = gerações)."],
+ ["Curva de crescimento","1) Fase lag: adaptação, sem aumento de número. 2) Fase log (exponencial): divisão máxima, células mais sensíveis a antibióticos. 3) Fase estacionária: nutrientes acabam, mortes = divisões. 4) Fase de declínio (morte): mortes superam divisões."],
+ ["Temperatura","Psicrófilos (0–20 °C), psicrotróficos (crescem na geladeira), mesófilos (20–45 °C, ótimo ~37 °C, a maioria dos patógenos), termófilos (45–80 °C), hipertermófilos (>80 °C)."],
+ ["Oxigênio","Aeróbios obrigatórios (precisam de O₂), anaeróbios obrigatórios (O₂ é tóxico, ex.: Clostridium), anaeróbios facultativos (com ou sem, ex.: E. coli, S. aureus), microaerófilos (pouco O₂), aerotolerantes."],
+ ["pH, água e meios","A maioria prefere pH neutro (6,5–7,5); acidófilos toleram ácido. Halófilos toleram sal. Meios: líquidos (caldo), sólidos (ágar), seletivos (inibem uns, ex.: MacConkey só deixa Gram-negativas), diferenciais (distinguem, ex.: MacConkey fermentadores de lactose ficam rosa), enriquecidos (ágar sangue)."]],
+ qs:[
+ ["Em qual fase as bactérias se dividem na taxa máxima?",["Lag","Log (exponencial)","Estacionária","Declínio"],1,"Na fase log a população dobra a cada tempo de geração."],
+ ["Bactérias patogênicas humanas geralmente são:",["Psicrófilas","Mesófilas","Termófilas","Hipertermófilas"],1,"Mesófilos crescem bem perto de 37 °C, a temperatura do corpo."],
+ ["Começando com 10 bactérias, após 3 gerações teremos:",["30","40","80","100"],2,"10 × 2³ = 10 × 8 = 80."],
+ ["Para qual micro-organismo o oxigênio é tóxico?",["Aeróbio obrigatório","Anaeróbio facultativo","Anaeróbio obrigatório","Microaerófilo"],2,"Anaeróbios obrigatórios não têm enzimas para neutralizar os radicais de O₂."]]},
+{id:"gram",name:"Coloração de Gram",hero:"Gramzinho Roxo",shape:"circle",color:"#6D28D9",
+ hi:"Se eu fico ROXO sou Gram-positivo; se fico ROSA sou Gram-negativo. Tudo depende da minha parede!",
+ facts:[
+ ["Etapas (na ordem)","1) Cristal violeta, 1 min (corante primário). 2) Lugol, 1 min (mordente: forma complexo cristal violeta-iodo). 3) Álcool-acetona, ~10–30 s (descorante, etapa crítica). 4) Fucsina ou safranina, 30 s–1 min (contracorante). Lavar com água entre as etapas."],
+ ["Antes de corar","Preparar o esfregaço na lâmina, secar ao ar e fixar passando pela chama. Observar na objetiva de 100x com óleo de imersão."],
+ ["Resultado","Gram-positivas: roxas/azuis (a parede grossa de peptidoglicano retém o complexo). Gram-negativas: rosas/vermelhas (o álcool dissolve a membrana externa, o complexo sai e a fucsina cora)."],
+ ["Exemplos","Gram+: Staphylococcus, Streptococcus, Bacillus, Clostridium, Listeria. Gram−: E. coli, Salmonella, Pseudomonas, Neisseria (diplococo), Klebsiella."],
+ ["Erros comuns","Descorar demais faz Gram+ parecer Gram−. Descorar de menos faz Gram− parecer Gram+. Culturas velhas de Gram+ podem corar como Gram−. Mycobacterium não cora bem pelo Gram (usa-se Ziehl-Neelsen)."]],
+ qs:[
+ ["Qual é a etapa do mordente na coloração de Gram?",["Cristal violeta","Lugol","Álcool-acetona","Fucsina"],1,"O lugol (iodo) forma o complexo com o cristal violeta."],
+ ["Uma bactéria Gram-negativa ao final aparece:",["Roxa","Rosa/vermelha","Verde","Incolor"],1,"Perde o cristal violeta no descorante e fica com a cor da fucsina."],
+ ["Qual a etapa mais crítica, que pode causar falso resultado?",["Fixação","Descoloração com álcool","Lavagem","Secagem"],1,"Tempo errado no álcool-acetona troca o resultado."],
+ ["Por que a Gram-positiva fica roxa?",["Tem LPS","Tem parede espessa de peptidoglicano que retém o complexo","Não tem parede","Tem cápsula"],1,"A camada grossa de peptidoglicano desidrata e prende o complexo cristal violeta-iodo."]]},
+{id:"cat",name:"Teste da Catalase",hero:"Bolhudo",shape:"circle",color:"#0EA5E9",
+ hi:"Coloca peróxido em mim e... BLUB BLUB! Bolhas = catalase positiva. Assim eu separo estafilo de estrepto!",
+ facts:[
+ ["Princípio","A enzima catalase decompõe o peróxido de hidrogênio: 2 H₂O₂ → 2 H₂O + O₂. O oxigênio liberado forma bolhas (efervescência)."],
+ ["Como fazer","Colocar uma gota de H₂O₂ a 3% numa lâmina, encostar uma porção da colônia com alça ou palito e observar bolhas imediatas. Também pode pingar o reagente direto na colônia."],
+ ["Interpretação","Positivo: bolhas (Staphylococcus, Micrococcus, Listeria, a maioria das enterobactérias). Negativo: sem bolhas (Streptococcus, Enterococcus)."],
+ ["Uso principal","Diferenciar cocos Gram-positivos: Staphylococcus (catalase +) de Streptococcus (catalase −). Depois, a coagulase separa S. aureus (+) dos outros estafilococos (−)."],
+ ["Cuidados","Não usar colônia tirada de ágar sangue com sangue junto: as hemácias têm catalase e dão falso positivo. Evitar alça de níquel-cromo, que pode reagir; prefira palito ou alça plástica."]],
+ qs:[
+ ["Teste da catalase positivo é indicado por:",["Mudança para azul","Formação de bolhas","Precipitado branco","Cor rosa"],1,"As bolhas são o O₂ liberado da quebra do H₂O₂."],
+ ["Qual gênero é catalase negativo?",["Staphylococcus","Streptococcus","Micrococcus","Listeria"],1,"Streptococcus é catalase negativo; é assim que se separa de Staphylococcus."],
+ ["Qual reagente é usado?",["Lugol","Peróxido de hidrogênio 3%","Álcool 70%","Fucsina"],1,"H₂O₂ a 3% é o substrato da catalase."],
+ ["Pegar colônia junto com ágar sangue pode causar:",["Falso negativo","Falso positivo","Nenhum efeito","Coloração rosa"],1,"Hemácias têm catalase própria e geram bolhas mesmo sem a bactéria ter."]]},
+{id:"micro",name:"Microbiota Endógena",hero:"Turma da Flora",shape:"blob",color:"#22C55E",
+ hi:"A gente mora em você e te protege! Ocupamos espaço, fazemos vitaminas e treinamos sua imunidade.",
+ facts:[
+ ["Conceito","Microbiota normal (residente) são os micro-organismos que colonizam o corpo sem causar doença. Residente: fixa. Transitória: fica horas ou dias e vai embora."],
+ ["Onde vivem","Pele: Staphylococcus epidermidis, Cutibacterium acnes. Boca: Streptococcus mutans e outros estreptococos viridans. Intestino grosso: maior densidade (Bacteroides, E. coli, Bifidobacterium). Vagina: Lactobacillus (mantém pH ácido). Trato respiratório superior: estreptococos, Staphylococcus aureus no nariz de portadores."],
+ ["Regiões normalmente estéreis","Sangue, líquor, bexiga/urina, pulmões inferiores, cavidades internas. Micróbio nesses locais indica infecção."],
+ ["Benefícios","Antagonismo microbiano (competem por espaço e nutrientes e produzem bacteriocinas), síntese de vitaminas K e B12, estímulo ao sistema imune, digestão de fibras."],
+ ["Quando vira problema","Patógenos oportunistas causam doença quando a imunidade cai ou mudam de lugar (E. coli do intestino na bexiga = infecção urinária). Antibióticos causam disbiose: ex.: Clostridioides difficile (colite) e candidíase."]],
+ qs:[
+ ["Qual micro-organismo mantém o pH ácido da vagina?",["E. coli","Lactobacillus","Candida","S. aureus"],1,"Lactobacilos produzem ácido lático, protegendo contra patógenos."],
+ ["A microbiota intestinal ajuda a produzir:",["Insulina","Vitamina K","Hemoglobina","Adrenalina"],1,"Bactérias intestinais sintetizam vitamina K e vitaminas do complexo B."],
+ ["E. coli causando infecção urinária é exemplo de:",["Microbiota transitória","Patógeno oportunista fora do seu local","Vírus","Esterilização"],1,"Faz parte do intestino, mas causa doença ao chegar ao trato urinário."],
+ ["Qual destes locais é normalmente estéril?",["Pele","Boca","Sangue","Intestino grosso"],2,"Sangue, líquor e bexiga não têm microbiota normal."]]},
+{id:"atb",name:"Antibióticos e Resistência",hero:"Capitão Penicilina",shape:"pill",color:"#E11D48",
+ hi:"Eu ataco as bactérias onde dói! Mas elas aprendem a se defender. Conheça os alvos e os truques delas.",
+ facts:[
+ ["Toxicidade seletiva","O antibiótico atinge estruturas da bactéria que não existem (ou são diferentes) na célula humana. Bactericida mata; bacteriostático impede o crescimento."],
+ ["Alvos e classes","Parede (peptidoglicano): beta-lactâmicos (penicilinas, cefalosporinas, carbapenêmicos) e vancomicina. Síntese proteica (ribossomo 70S): aminoglicosídeos e tetraciclinas (30S); macrolídeos, cloranfenicol e clindamicina (50S). Ácidos nucleicos: quinolonas (DNA girase), rifampicina (RNA polimerase). Metabolismo: sulfonamidas e trimetoprima (ácido fólico). Membrana: polimixina."],
+ ["Mecanismos de resistência","1) Destruir o fármaco por enzimas (beta-lactamases, ESBL, carbapenemases como KPC). 2) Alterar o alvo (PBP2a no MRSA). 3) Bombas de efluxo (expulsam o antibiótico). 4) Diminuir a entrada (perda de porinas em Gram−)."],
+ ["Como a resistência se espalha","Mutações (transferência vertical) e transferência horizontal de genes: conjugação (plasmídeos), transformação (DNA livre) e transdução (bacteriófago). O uso excessivo seleciona as resistentes."],
+ ["Superbactérias","MRSA (S. aureus resistente à meticilina), VRE (enterococo resistente à vancomicina), enterobactérias produtoras de ESBL e KPC. Prevenção: uso racional, completar o tratamento, higiene das mãos."]],
+ qs:[
+ ["Penicilinas atuam inibindo:",["Síntese proteica","Síntese da parede celular","DNA girase","Ácido fólico"],1,"Beta-lactâmicos se ligam às PBPs e bloqueiam o peptidoglicano."],
+ ["Beta-lactamases são um exemplo de resistência por:",["Bomba de efluxo","Inativação enzimática do fármaco","Alteração de porina","Alteração do ribossomo"],1,"A enzima quebra o anel beta-lactâmico."],
+ ["Transferência de plasmídeo de resistência pelo pilus é:",["Transformação","Transdução","Conjugação","Fissão binária"],2,"Conjugação usa contato direto pelo pilus sexual."],
+ ["As quinolonas têm como alvo:",["DNA girase","Ribossomo 50S","Parede","Membrana"],0,"Quinolonas (ex.: ciprofloxacino) inibem a DNA girase/topoisomerase."]]},
+{id:"tsa",name:"Antibiograma",hero:"Halo, o Medidor",shape:"ring",color:"#F97316",
+ hi:"Quanto maior o meu halo, mais o antibiótico funciona! Vem medir comigo no Kirby-Bauer.",
+ facts:[
+ ["O que é","Teste de sensibilidade aos antimicrobianos (TSA): mostra quais antibióticos funcionam contra a bactéria isolada do paciente, guiando o tratamento."],
+ ["Método de Kirby-Bauer (disco-difusão)","1) Preparar suspensão da bactéria na escala 0,5 de McFarland (~1,5 × 10⁸ UFC/mL). 2) Semear em tapete com swab no ágar Mueller-Hinton (em 3 direções). 3) Colocar discos de antibiótico. 4) Incubar 16–18 h a 35 °C. 5) Medir o diâmetro do halo em mm."],
+ ["Interpretação","O halo é comparado com tabelas (BrCAST/EUCAST ou CLSI): S = sensível, I = sensível aumentando a exposição (ou intermediário), R = resistente. Halo maior indica maior sensibilidade, mas cada antibiótico tem seu ponto de corte."],
+ ["CIM","Concentração inibitória mínima: menor concentração que inibe o crescimento visível. Medida por microdiluição em caldo ou fita E-test. Quanto menor a CIM, mais potente o fármaco contra aquela bactéria."],
+ ["Por que Mueller-Hinton","Meio padronizado, com boa reprodutibilidade, pouco inibidor de sulfonamidas e que permite difusão uniforme. A espessura do ágar (~4 mm) e o inóculo correto influenciam o tamanho do halo."]],
+ qs:[
+ ["Qual meio é padrão no antibiograma por disco-difusão?",["MacConkey","Ágar sangue","Mueller-Hinton","Sabouraud"],2,"Mueller-Hinton é o meio padronizado para o TSA."],
+ ["O inóculo é padronizado pela escala:",["De pH","0,5 de McFarland","De Gram","Kelvin"],1,"0,5 McFarland ≈ 1,5 × 10⁸ UFC/mL."],
+ ["Ausência de halo ao redor do disco indica:",["Sensível","Resistente","Contaminação","Vírus"],1,"A bactéria cresceu encostada no disco: o antibiótico não a inibiu."],
+ ["CIM é:",["A maior dose tolerada pelo paciente","A menor concentração que inibe o crescimento visível","O tamanho do halo","O tempo de incubação"],1,"Concentração Inibitória Mínima."]]},
+{id:"virus",name:"Vírus e Doenças",hero:"Vírion Spike",shape:"virus",color:"#A855F7",
+ hi:"Não sou célula, sou parasita intracelular obrigatório! Sem uma célula para invadir, eu não me replico.",
+ facts:[
+ ["Características","Acelulares, muito pequenos (20–300 nm, só vistos ao microscópio eletrônico). Têm DNA ou RNA, nunca os dois. Capsídeo de proteína (capsômeros); alguns têm envelope lipídico com espículas. Parasitas intracelulares obrigatórios. Antibióticos não funcionam contra vírus."],
+ ["Replicação","1) Adsorção (ligação ao receptor). 2) Penetração. 3) Desnudamento (libera o genoma). 4) Síntese/replicação do genoma e proteínas. 5) Montagem (maturação). 6) Liberação (lise ou brotamento, no qual envelopados levam a membrana da célula)."],
+ ["Ciclos","Lítico: replica e rompe a célula. Lisogênico: o genoma se integra e fica latente (prófago); retrovírus como o HIV usam transcriptase reversa (RNA → DNA)."],
+ ["Doenças de vírus de DNA","Herpes simples (HSV-1 e 2), varicela-zóster (catapora e herpes-zóster), HPV (verrugas, câncer de colo do útero), hepatite B, adenovírus."],
+ ["Doenças de vírus de RNA","Influenza (gripe), SARS-CoV-2 (COVID-19), HIV (aids), dengue, zika, chikungunya e febre amarela (arbovírus, Aedes aegypti), sarampo, caxumba, raiva, hepatites A e C, poliomielite, rotavírus."],
+ ["Prevenção e tratamento","Vacinas são a principal prevenção. Antivirais atuam em etapas específicas (aciclovir no herpes, oseltamivir na gripe, antirretrovirais no HIV)."]],
+ qs:[
+ ["Os vírus são considerados:",["Procariotos","Parasitas intracelulares obrigatórios","Fungos","Bactérias pequenas"],1,"Só se replicam dentro de células vivas."],
+ ["A dengue é transmitida por:",["Água contaminada","Aedes aegypti","Contato sexual","Gotículas"],1,"Dengue, zika, chikungunya e febre amarela urbana usam o Aedes aegypti."],
+ ["Qual vírus usa transcriptase reversa?",["HPV","HIV","Herpes","Adenovírus"],1,"O HIV é um retrovírus: converte RNA em DNA."],
+ ["Por que antibióticos não tratam gripe?",["Gripe é bacteriana","Vírus não têm as estruturas-alvo dos antibióticos","Antibiótico é caro","Gripe não tem cura"],1,"Vírus não têm parede, ribossomo próprio nem metabolismo."]]},
+{id:"ctrl",name:"Controle do Crescimento Microbiano",hero:"Autoclavão",shape:"box",color:"#475569",
+ hi:"121 graus, 15 libras de pressão, 15 minutos: nem esporo me escapa! Vamos esterilizar, desinfetar e limpar.",
+ facts:[
+ ["Termos-chave","Esterilização: elimina TODAS as formas de vida, inclusive esporos. Desinfecção: elimina patógenos em objetos/superfícies (não necessariamente esporos). Antissepsia: desinfecção em tecido vivo (pele). Sanitização: reduz a carga a níveis seguros. Assepsia: técnicas para evitar contaminação. Sufixo -cida mata; -stático inibe."],
+ ["Métodos físicos – calor","Calor úmido: autoclave (121 °C, 1 atm extra/15 psi, 15–20 min), o mais usado. Calor seco: estufa/forno de Pasteur (160–170 °C por 2 h) para vidraria e metais; flambagem e incineração. Pasteurização (72 °C por 15 s) reduz patógenos no leite, não esteriliza."],
+ ["Outros métodos físicos","Filtração (membranas de 0,22 μm) para líquidos sensíveis ao calor. Radiação ionizante (raios gama) esteriliza descartáveis; ultravioleta (UV) atua em superfícies e ar. Refrigeração e congelamento são bacteriostáticos. Dessecação e pressão osmótica (sal, açúcar)."],
+ ["Métodos químicos","Álcool 70% (melhor que 99% porque a água ajuda a desnaturar proteínas). Hipoclorito de sódio (água sanitária). Clorexidina e iodopovidona (antissépticos de pele). Glutaraldeído e óxido de etileno (esterilizantes químicos). Peróxido de hidrogênio, quaternários de amônio, fenóis."],
+ ["Fatores que influenciam","Número de micróbios, tipo (esporos e micobactérias são mais resistentes), tempo de exposição, temperatura, presença de matéria orgânica (sangue, pus atrapalham) e concentração do agente."]],
+ qs:[
+ ["Qual processo elimina inclusive endósporos?",["Desinfecção","Antissepsia","Esterilização","Sanitização"],2,"Só a esterilização destrói todas as formas, incluindo esporos."],
+ ["Condição padrão de autoclave:",["100 °C por 5 min","121 °C, 15 psi, 15 min","60 °C por 1 h","170 °C por 2 h"],1,"Calor úmido sob pressão: 121 °C por 15–20 min."],
+ ["Por que o álcool 70% é melhor que o 99%?",["É mais barato","A água ajuda a desnaturar proteínas e penetrar","Evapora mais rápido","Mata vírus envelopados só a 70%"],1,"A água facilita a desnaturação e retarda a evaporação."],
+ ["Usar clorexidina na pele antes de uma injeção é:",["Esterilização","Antissepsia","Sanitização","Pasteurização"],1,"Antissepsia é aplicada em tecido vivo."]]},
+{id:"pat",name:"Mecanismos de Patogenicidade",hero:"Vilão Virulento",shape:"spiky",color:"#DC2626",
+ hi:"Para causar doença eu preciso entrar, grudar, invadir, fugir da imunidade e causar dano. Conheça meus truques (para me vencer)!",
+ facts:[
+ ["Conceitos","Patogenicidade: capacidade de causar doença. Virulência: grau dessa capacidade (medida por DL50, dose letal para 50%). Fatores de virulência são as ferramentas do micro-organismo."],
+ ["Portas de entrada e aderência","Entrada por mucosas (respiratória, digestiva, geniturinária), pele lesionada e via parenteral (agulhas, mordidas). Aderência por adesinas, fímbrias e glicocálice; biofilmes (ex.: placa dental, cateteres) protegem contra antibióticos e defesas."],
+ ["Escape da defesa","Cápsula (impede fagocitose; ex.: Streptococcus pneumoniae). Proteína M (Streptococcus pyogenes). Leucocidinas (matam leucócitos). Variação antigênica (influenza, Neisseria gonorrhoeae). Sobreviver dentro do fagócito (M. tuberculosis)."],
+ ["Enzimas invasivas","Coagulase (forma coágulo de fibrina, protege S. aureus), estreptoquinase/fibrinolisina (dissolve coágulos e espalha), hialuronidase (quebra o tecido conjuntivo), colagenase, IgA protease."],
+ ["Toxinas","Exotoxinas: proteínas secretadas, muito potentes, principalmente por Gram+ (toxina botulínica, tetânica, diftérica, colérica); viram toxoides em vacinas. Endotoxina: LPS (lipídeo A) das Gram−, liberado quando a bactéria morre; causa febre e pode levar ao choque séptico."]],
+ qs:[
+ ["A endotoxina (LPS) é característica de:",["Gram-positivas","Gram-negativas","Vírus","Fungos"],1,"O lipídeo A do LPS da membrana externa das Gram−."],
+ ["A cápsula contribui para a virulência porque:",["Produz toxina","Dificulta a fagocitose","Faz a bactéria nadar","Destrói o DNA"],1,"Os fagócitos têm dificuldade de englobar bactérias capsuladas."],
+ ["Toxina botulínica e tetânica são:",["Endotoxinas","Exotoxinas","Enzimas de resistência","Adesinas"],1,"Exotoxinas proteicas e muito potentes, produzidas por Clostridium."],
+ ["Qual enzima forma coágulo de fibrina ao redor de S. aureus?",["Hialuronidase","Coagulase","Estreptoquinase","Catalase"],1,"A coagulase transforma fibrinogênio em fibrina."]]}
+];
+
+/* ---------- estado ---------- */
+let S={xp:0,stars:{}};try{const r=localStorage.getItem("mq");if(r)S=JSON.parse(r)}catch(e){}
+function save(){try{localStorage.setItem("mq",JSON.stringify(S))}catch(e){}}
+let sound=true;
+
+/* ---------- som (Web Audio) ---------- */
+let ac;function tone(seq){if(!sound)return;try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();let t=ac.currentTime;
+ seq.forEach(([f,d,type])=>{const o=ac.createOscillator(),g=ac.createGain();o.type=type||"triangle";o.frequency.value=f;
+ g.gain.setValueAtTime(.18,t);g.gain.exponentialRampToValueAtTime(.001,t+d);o.connect(g).connect(ac.destination);o.start(t);o.stop(t+d);t+=d*.8})}catch(e){}}
+const SFX={click:()=>tone([[660,.07]]),ok:()=>tone([[523,.1],[659,.1],[784,.18]]),bad:()=>tone([[220,.16,"sawtooth"],[160,.22,"sawtooth"]]),
+ win:()=>tone([[523,.12],[659,.12],[784,.12],[1047,.3],[784,.1],[1047,.4]]),pop:()=>tone([[880,.05,"sine"],[1320,.06,"sine"]])};
+
+/* ---------- personagens SVG ---------- */
+function face(cx,cy,s=1){return `<circle cx="${cx-9*s}" cy="${cy-3}" r="${5*s}" fill="#fff" stroke="#2B1B3D" stroke-width="2"/><circle cx="${cx+9*s}" cy="${cy-3}" r="${5*s}" fill="#fff" stroke="#2B1B3D" stroke-width="2"/>
+<circle cx="${cx-8*s}" cy="${cy-2}" r="${2.4*s}" fill="#2B1B3D"/><circle cx="${cx+10*s}" cy="${cy-2}" r="${2.4*s}" fill="#2B1B3D"/>
+<path d="M${cx-7} ${cy+6} Q${cx} ${cy+13} ${cx+7} ${cy+6}" fill="none" stroke="#2B1B3D" stroke-width="2.5" stroke-linecap="round"/>
+<circle cx="${cx-16}" cy="${cy+6}" r="3.5" fill="#FF5D8F" opacity=".55"/><circle cx="${cx+16}" cy="${cy+6}" r="3.5" fill="#FF5D8F" opacity=".55"/>`}
+function charSVG(t,size=64){const c=t.color,k='stroke="#2B1B3D" stroke-width="3"';let b="";
+ switch(t.shape){
+ case"rod":b=`<rect x="10" y="26" width="80" height="48" rx="24" fill="${c}" ${k}/><path d="M90 50 q10 -8 6 -20" fill="none" ${k}/>`;break;
+ case"shield":b=`<path d="M50 10 L86 22 Q86 70 50 90 Q14 70 14 22Z" fill="${c}" ${k}/>`;break;
+ case"star":b=`<path d="M50 6 L61 36 L94 38 L68 58 L77 90 L50 72 L23 90 L32 58 L6 38 L39 36Z" fill="${c}" ${k} stroke-linejoin="round"/>`;break;
+ case"drop":b=`<path d="M50 8 Q84 50 80 66 A30 30 0 0 1 20 66 Q16 50 50 8Z" fill="${c}" ${k}/>`;break;
+ case"pill":b=`<rect x="12" y="28" width="76" height="44" rx="22" fill="${c}" ${k}/><rect x="50" y="29.5" width="36.5" height="41" rx="0" fill="#fff" opacity=".35"/>`;break;
+ case"ring":b=`<circle cx="50" cy="52" r="40" fill="#FFE3A3" ${k} stroke-dasharray="6 5"/><circle cx="50" cy="52" r="28" fill="${c}" ${k}/>`;break;
+ case"virus":b=[0,45,90,135,180,225,270,315].map(a=>{const r=a*Math.PI/180;return `<line x1="${50+30*Math.cos(r)}" y1="${52+30*Math.sin(r)}" x2="${50+44*Math.cos(r)}" y2="${52+44*Math.sin(r)}" ${k}/><circle cx="${50+45*Math.cos(r)}" cy="${52+45*Math.sin(r)}" r="5" fill="#FFB000" ${k}/>`}).join("")+`<polygon points="50,18 80,35 80,69 50,86 20,69 20,35" fill="${c}" ${k}/>`;break;
+ case"box":b=`<rect x="16" y="20" width="68" height="68" rx="12" fill="${c}" ${k}/><circle cx="50" cy="14" r="7" fill="#FFB000" ${k}/><path d="M30 12 q4 -8 0 -12 M70 12 q4 -8 0 -12" fill="none" stroke="#94A3B8" stroke-width="3"/>`;break;
+ case"spiky":b=`<path d="M50 6 L58 24 L78 14 L74 34 L94 40 L78 54 L90 72 L68 72 L64 92 L50 78 L36 92 L32 72 L10 72 L22 54 L6 40 L26 34 L22 14 L42 24Z" fill="${c}" ${k} stroke-linejoin="round"/><path d="M36 36 L46 42 M64 36 L54 42" ${k}/>`;break;
+ case"blob":b=`<circle cx="30" cy="58" r="22" fill="#86EFAC" ${k}/><circle cx="70" cy="58" r="22" fill="#FDE047" ${k}/><circle cx="50" cy="46" r="28" fill="${c}" ${k}/>`;break;
+ default:b=`<circle cx="50" cy="52" r="38" fill="${c}" ${k}/>`;}
+ return `<svg class="char" width="${size}" height="${size}" viewBox="0 0 100 100" aria-hidden="true">${b}${face(50,52)}</svg>`}
+
+/* ---------- telas ---------- */
+const V=document.getElementById("view");
+function hud(){const lvl=1+Math.floor(S.xp/100);document.getElementById("lvl").textContent="Nível "+lvl;
+ document.getElementById("xp").textContent=S.xp+" XP";document.getElementById("xpfill").style.width=(S.xp%100)+"%";
+ const done=T.filter(t=>S.stars[t.id]).length;document.getElementById("progress").textContent=`${done} de ${T.length} fases concluídas`}
+function starStr(n){return "★".repeat(n)+"☆".repeat(3-n)}
+function map(){hud();V.innerHTML=`<div class="grid">${T.map((t,i)=>`<button class="tile" data-i="${i}">${charSVG(t)}<div><small>Fase ${i+1} · ${t.hero}</small><h3>${t.name}</h3><span class="stars">${starStr(S.stars[t.id]||0)}</span></div></button>`).join("")}</div>`;
+ V.querySelectorAll(".tile").forEach(b=>b.onclick=()=>{SFX.pop();level(+b.dataset.i)})}
+function level(i,tab="ficha"){const t=T[i];hud();
+ V.innerHTML=`<section class="stage"><div class="stagehead">${charSVG(t,110)}<div><small class="meta">Fase ${i+1} · ${t.hero}</small><h2>${t.name}</h2><div class="bubble">${t.hi}</div></div></div>
+ <div class="tabs" role="tablist"><button role="tab" aria-selected="${tab==="ficha"}" id="tf">Ficha de estudo</button><button role="tab" aria-selected="${tab==="quiz"}" id="tq">Quiz (${t.qs.length})</button></div>
+ <div class="panel" id="pn"></div></section>
+ <div class="row"><button class="btn alt" id="back">← Voltar ao mapa</button>${i<T.length-1?`<button class="btn alt" id="next">Próxima fase →</button>`:""}</div>`;
+ document.getElementById("back").onclick=()=>{SFX.click();map()};
+ const nx=document.getElementById("next");if(nx)nx.onclick=()=>{SFX.click();level(i+1)};
+ document.getElementById("tf").onclick=()=>{SFX.click();level(i,"ficha")};document.getElementById("tq").onclick=()=>{SFX.click();quiz(t.qs.map(q=>({q,t})),document.getElementById("pn"),t.id)};
+ if(tab==="ficha"){document.getElementById("pn").innerHTML=`<div class="facts">${t.facts.map(f=>`<div class="fact" style="--c:${t.color}"><b>${f[0]}</b><p>${f[1]}</p></div>`).join("")}</div>
+ <div class="row"><span class="meta">Leu tudo? Hora de provar!</span><button class="btn" id="go">Começar quiz</button></div>`;
+ document.getElementById("go").onclick=()=>{SFX.click();document.getElementById("tf").setAttribute("aria-selected","false");document.getElementById("tq").setAttribute("aria-selected","true");quiz(t.qs.map(q=>({q,t})),document.getElementById("pn"),t.id)}}
+ window.scrollTo({top:0,behavior:"smooth"})}
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a}
+function quiz(list,el,id){let n=0,hits=0,streak=0;list=shuffle(list);
+ const show=()=>{const {q,t}=list[n];const order=shuffle(q[1].map((o,k)=>k));
+  el.innerHTML=`<div class="row" style="margin:0 0 10px"><span class="meta">Pergunta ${n+1}/${list.length}${id==="boss"?" · "+t.hero:""}</span><span class="meta">Acertos: ${hits}${streak>1?" · sequência "+streak:""}</span></div>
+  <p class="q">${q[0]}</p><div class="opts">${order.map(k=>`<button class="opt" data-k="${k}">${q[1][k]}</button>`).join("")}</div><div id="ex"></div>`;
+  el.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{const k=+b.dataset.k,ok=k===q[2];
+   el.querySelectorAll(".opt").forEach(x=>{x.disabled=true;if(+x.dataset.k===q[2])x.classList.add("right")});
+   if(ok){hits++;streak++;const g=10+(streak>2?5:0);S.xp+=g;SFX.ok();burst(20)}else{streak=0;b.classList.add("wrong");SFX.bad()}
+   save();hud();
+   document.getElementById("ex").innerHTML=`<div class="explain">${ok?"Acertou! ":"Quase! "}${q[3]}</div><div class="row"><span></span><button class="btn" id="nq">${n<list.length-1?"Próxima":"Ver resultado"}</button></div>`;
+   document.getElementById("nq").onclick=()=>{SFX.click();n++;n<list.length?show():end()};document.getElementById("nq").focus()})};
+ const end=()=>{const p=hits/list.length,st=p===1?3:p>=.66?2:p>0?1:0;
+  if(id!=="boss"){S.stars[id]=Math.max(S.stars[id]||0,st)}S.xp+=st*10;save();hud();
+  if(st>=2){SFX.win();burst(140)}else SFX.bad();
+  el.innerHTML=`<div class="done"><span class="stars" style="font-size:40px">${starStr(st)}</span><h3>${hits} de ${list.length} certas</h3>
+  <p class="meta">${st===3?"Perfeito! Você domina esse assunto.":st===2?"Muito bom! Revise os erros e tente as 3 estrelas.":"Volte na ficha, releia com calma e tente de novo."}</p>
+  <div class="row" style="justify-content:center"><button class="btn" id="again">Jogar de novo</button></div></div>`;
+  document.getElementById("again").onclick=()=>{SFX.click();quiz(list,el,id)}};
+ show()}
+function bossLevel(){hud();const all=shuffle(T.flatMap(t=>t.qs.map(q=>({q,t})))).slice(0,15);
+ V.innerHTML=`<section class="stage"><div class="stagehead"><div style="display:flex;gap:4px;flex-wrap:wrap">${T.slice(0,6).map(t=>charSVG(t,48)).join("")}</div><div><h2>Desafio final</h2><div class="bubble">15 perguntas sorteadas de todas as fases. Sequência de 3 acertos dá XP bônus!</div></div></div><div class="panel" id="pn"></div></section><div class="row"><button class="btn alt" id="back">← Voltar ao mapa</button></div>`;
+ document.getElementById("back").onclick=()=>{SFX.click();map()};quiz(all,document.getElementById("pn"),"boss")}
+document.getElementById("boss").onclick=()=>{SFX.pop();bossLevel()};
+document.getElementById("snd").onclick=e=>{sound=!sound;e.target.textContent="Som: "+(sound?"ligado":"desligado");e.target.setAttribute("aria-pressed",sound);SFX.click()};
+
+/* ---------- confete ---------- */
+const cv=document.getElementById("cf"),cx=cv.getContext("2d");let parts=[],raf;
+function burst(n){if(matchMedia("(prefers-reduced-motion: reduce)").matches)return;cv.width=innerWidth;cv.height=innerHeight;
+ const cols=["#FF5D8F","#14B8A6","#7C3AED","#FFB000","#22C55E","#0EA5E9"];
+ for(let i=0;i<n;i++)parts.push({x:innerWidth/2,y:innerHeight/3,vx:(Math.random()-.5)*14,vy:Math.random()*-12-2,r:Math.random()*6+3,c:cols[i%6],l:90});
+ if(!raf)loop()}
+function loop(){cx.clearRect(0,0,cv.width,cv.height);parts.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=.4;p.l--;cx.fillStyle=p.c;cx.beginPath();cx.arc(p.x,p.y,p.r,0,7);cx.fill()});
+ parts=parts.filter(p=>p.l>0&&p.y<cv.height+20);raf=parts.length?requestAnimationFrame(loop):(cx.clearRect(0,0,cv.width,cv.height),null)}
+map();
+</script>
+</body>
+</html>
