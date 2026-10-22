@@ -4,6 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>MicroQuest</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#7C3AED">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&family=Nunito:wght@400;600;800&display=swap">
 <style>
@@ -79,6 +84,7 @@ button{font:inherit;cursor:pointer}
       <p class="sub">12 fases de Microbiologia. Leia a ficha, enfrente o quiz, ganhe estrelas.</p>
     </div>
     <div class="hud">
+      <button class="btn" id="install" hidden>Instalar app</button>
       <span class="pill" id="lvl">Nível 1</span>
       <span class="pill" id="xp">0 XP</span>
       <button class="btn alt" id="snd" aria-pressed="true">Som: ligado</button>
@@ -339,6 +345,12 @@ function burst(n){if(matchMedia("(prefers-reduced-motion: reduce)").matches)retu
 function loop(){cx.clearRect(0,0,cv.width,cv.height);parts.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=.4;p.l--;cx.fillStyle=p.c;cx.beginPath();cx.arc(p.x,p.y,p.r,0,7);cx.fill()});
  parts=parts.filter(p=>p.l>0&&p.y<cv.height+20);raf=parts.length?requestAnimationFrame(loop):(cx.clearRect(0,0,cv.width,cv.height),null)}
 map();
+/* ---------- PWA ---------- */
+if("serviceWorker" in navigator){addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}))}
+let deferred;const ib=document.getElementById("install");
+addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferred=e;ib.hidden=false});
+ib.onclick=async()=>{if(!deferred)return;deferred.prompt();await deferred.userChoice;deferred=null;ib.hidden=true};
+addEventListener("appinstalled",()=>{ib.hidden=true});
 </script>
 </body>
 </html>
